@@ -1,6 +1,7 @@
 ﻿#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 typedef struct text_t {
 	int leftChildren;
@@ -109,6 +110,21 @@ void append_line( text_t *txt, char * new_line) {
 		new_leaf->text = new_line;
 		tmp_node->right = new_leaf;
 		tmp_node->rightChildren += 1;
+		stack[stack_p++] = tmp_node;
+		int tmp_ptr = stack_p;
+		while(tmp_ptr > 0){
+			text_t *tmp = stack[--tmp_ptr];
+			if(tmp->left != NULL && tmp->right != NULL){
+				if (tmp->left->height > tmp->right->height)
+					tmp->height = tmp->left->height + 1;
+				else
+					tmp->height = tmp->right->height + 1;
+			} else if (tmp->right == NULL){
+				tmp->height = tmp->left->height + 1;
+			} else {
+				tmp->height = tmp->right->height + 1;
+			}
+		}
 	}
 	numLines += 1;
 	return;
@@ -158,20 +174,38 @@ void insert_line( text_t *txt, int index, char * new_line) {
 		}
 		text_t *new = get_node();
 		new->text = new_line;
+
 		if(tmp_node->left == NULL){
 			tmp_node->left = new;
 			tmp_node->leftChildren += 1;
+			stack[stack_p++] = tmp_node;
 		} else {
+			stack[stack_p++] = tmp_node;
 			tmp_node->leftChildren += 1;
 			tmp_node = tmp_node->left;
 			tmp_node->rightChildren += 1;
 			while(tmp_node->right != NULL){
+				stack[stack_p++] = tmp_node;
 				tmp_node = tmp_node->right;
 				tmp_node->rightChildren += 1;
 			}
+			stack[stack_p++] = tmp_node;
 			tmp_node->right = new;
 		}
-		tmp_node->height = 1;
+		int tmp_ptr = stack_p;
+		while(tmp_ptr > 0){
+			text_t *tmp = stack[--tmp_ptr];
+			if(tmp->left != NULL && tmp->right != NULL){
+				if (tmp->left->height > tmp->right->height)
+					tmp->height = tmp->left->height + 1;
+				else
+					tmp->height = tmp->right->height + 1;
+			} else if (tmp->right == NULL){
+				tmp->height = tmp->left->height + 1;
+			} else {
+				tmp->height = tmp->right->height + 1;
+			}
+		}
 		int finished = 0;
 		while(stack_p > 0 && !finished){
 			int tmp_height, old_height;
