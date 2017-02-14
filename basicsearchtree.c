@@ -13,36 +13,42 @@ typedef struct text_t {
 
 int numLines = 0;
 
-void left_rotation(text_t *n) {
+void left_rotation(text_t *n){
 	text_t *tmp_node;
-	int left_key, right_key;
+	char * tmp_key;
+	int tmp_left = n->leftChildren;
+	int tmp_right = n->rightChildren;
 	tmp_node = n->left;
-	left_key = n->leftChildren;
-	right_key = n->rightChildren;
-	n->left = n->right;
-	n->leftChildren	= n->right->leftChildren;
-	n->rightChildren	= n->right->rightChildren;
+	tmp_key  = strdup(n->text);
+	n->left  = n->right;
+	n->text   = strdup(n->right->text);
 	n->right = n->left->right;
 	n->left->right = n->left->left;
-	n->left->left = tmp_node;
-	n->left->leftChildren = left_key;
-	n->left->rightChildren = right_key;
+	n->left->left  = tmp_node;
+	n->left->text   = tmp_key;
+	n->leftChildren = n->left->leftChildren + 1;
+	n->rightChildren = n->left->rightChildren;
+	n->left->leftChildren = tmp_left;
+	n->left->rightChildren = tmp_right - n->left->rightChildren - 1;
 }
 
-void right_rotation(text_t *n) {
+void right_rotation(text_t *n){
 	text_t *tmp_node;
-	int left_key, right_key;
+	char * tmp_key;
+	int tmp_left = n->leftChildren;
+	int tmp_right = n->rightChildren;
 	tmp_node = n->right;
-	left_key = n->leftChildren;
-	right_key = n->rightChildren;
+	tmp_key  = strdup(n->text);
 	n->right = n->left;
-	n->leftChildren	= n->left->leftChildren;
-	n->rightChildren	= n->left->rightChildren;
-	n->left = n->right->left;
+	n->text   = strdup(n->left->text);
+	n->left  = n->right->left;
 	n->right->left = n->right->right;
-	n->right->right = tmp_node;
-	n->right->leftChildren = left_key;
-	n->right->rightChildren = right_key;
+	n->right->right  = tmp_node;
+	n->right->text   = tmp_key;
+	n->rightChildren = n->right->rightChildren + 1;
+	n->leftChildren = n->right->leftChildren;
+	n->right->rightChildren = tmp_right;
+	n->right->leftChildren = tmp_left - n->right->leftChildren - 1;
 }
 
 text_t *get_node() {
@@ -123,7 +129,7 @@ char * set_line( text_t *txt, int index, char * new_line){
 				tmp_node = tmp_node->right;
 			}
 		}
-		char *prev = strdup(tmp_node->text)
+		char *prev = strdup(tmp_node->text);
 		tmp_node->text = new_line;
 		return prev;
 	}
