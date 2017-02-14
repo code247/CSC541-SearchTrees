@@ -1,151 +1,163 @@
 ﻿#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "API.h"
 
-typedef int index;
 typedef struct text_t {
-	index      index;
+	int leftChildren;
+	int rightChildren;
     struct text_t   *left;
     struct text_t  *right;
-    int length;
+    int height;
+    char * text;
 } text_t;
 
-
-#define BLOCKSIZE 256
-
 int numLines = 0;
-text_t *currentblock = NULL;
-int    size_left;
-text_t *free_list = NULL;
-int nodes_taken = 0;
-int nodes_returned = 0;
+
+void left_rotation(text_t *n) {
+	text_t *tmp_node;
+	int left_key, right_key;
+	tmp_node = n->left;
+	left_key = n->leftChildren;
+	right_key = n->rightChildren;
+	n->left = n->right;
+	n->leftChildren	= n->right->leftChildren;
+	n->rightChildren	= n->right->rightChildren;
+	n->right = n->left->right;
+	n->left->right = n->left->left;
+	n->left->left = tmp_node;
+	n->left->leftChildren = left_key;
+	n->left->rightChildren = right_key;
+}
+
+void right_rotation(text_t *n) {
+	text_t *tmp_node;
+	int left_key, right_key;
+	tmp_node = n->right;
+	left_key = n->leftChildren;
+	right_key = n->rightChildren;
+	n->right = n->left;
+	n->leftChildren	= n->left->leftChildren;
+	n->rightChildren	= n->left->rightChildren;
+	n->left = n->right->left;
+	n->right->left = n->right->right;
+	n->right->right = tmp_node;
+	n->right->leftChildren = left_key;
+	n->right->rightChildren = right_key;
+}
 
 text_t *get_node() {
-  return (text_t *) malloc(BLOCKSIZE * sizeof(text_t));
+	text_t *tmp;
+	tmp = (text_t *) malloc(sizeof(text_t));
+	tmp->left = NULL;
+	tmp->right = NULL;
+	tmp->text = NULL;
+	tmp->leftChildren = 0;
+	tmp->rightChildren = 0;
+	tmp->height = 0;
+	return tmp;
 }
 
 text_t * create_text(){
-	text_t *tmp_node;
-	tmp_node = get_node();
-	tmp_node->left = NULL;
-	return( tmp_node );
+	return get_node();
 }
 
 int length_text( text_t *txt){
-	return txt->length;
+	return txt->leftChildren + txt->rightChildren + 1;
 }
 
 char * get_line( text_t *txt, int index) {
+	int i = index;
 	text_t *tmp_node;
-	if(txt->left == NULL)
+	if(txt == NULL || i > numLines || i < 1)
 		return(NULL);
 	else {
 		tmp_node = txt;
-		while( tmp_node->right != NULL ){
-			if(index < tmp_node->index )
+		while(tmp_node->leftChildren + 1 != i){
+			if(i <= tmp_node->leftChildren){
 				tmp_node = tmp_node->left;
-			else
-			   tmp_node = tmp_node->right;
+			} else {
+				i = i - tmp_node->leftChildren - 1;
+				tmp_node = tmp_node->right;
+			}
 		}
-		if( tmp_node->index == index )
-			return( (char *) tmp_node->left );
-		else
-			return( NULL );
+		return tmp_node->text;
 	}
 }
 
 void append_line( text_t *txt, char * new_line) {
 	text_t *tmp_node;
-	if( txt->left == NULL ) {
-		txt->left = (text_t *) new_line;
-		txt->index  = 1;
-		txt->right  = NULL;
-		txt->length = strlen(new_line);
+	if( txt == NULL ) {
+		txt = get_node();
+		txt->text = new_line;
 	} else {
 		tmp_node = txt;
 		while( tmp_node->right != NULL ) {
+			tmp_node->rightChildren += 1;
 			tmp_node = tmp_node->right;
 		}
-	    text_t *old_leaf, *new_leaf;
-		old_leaf = get_node();
-		old_leaf->left = tmp_node->left;
-		old_leaf->index = tmp_node->index;
-		old_leaf->right  = NULL;
-		old_leaf->length = tmp_node->length;
+	    text_t *new_leaf;
 		new_leaf = get_node();
-		new_leaf->left = (text_t *) new_line;
-		new_leaf->index = tmp_node->index + 1;
-		new_leaf->right  = NULL;
-		new_leaf->length = strlen(new_line);
-
-		tmp_node->left  = old_leaf;
+		new_leaf->text = new_line;
 		tmp_node->right = new_leaf;
-		tmp_node->index += 1;
-		tmp_node->length += tmp_node->length + strlen(new_line);
+		tmp_node->rightChildren += 1;
 	}
 	numLines += 1;
 	return;
 }
 
 char * set_line( text_t *txt, int index, char * new_line){
+	int i = index;
 	text_t *tmp_node;
-	if(txt->left == NULL)
+	if(txt == NULL || i > numLines || i <= 0)
 		return(NULL);
 	else {
 		tmp_node = txt;
-		while( tmp_node->right != NULL ){
-			if(index < tmp_node->index )
+		while(tmp_node->leftChildren + 1 != i){
+			if(i <= tmp_node->leftChildren){
 				tmp_node = tmp_node->left;
-			else
-			   tmp_node = tmp_node->right;
+			} else {
+				i = i - tmp_node->leftChildren - 1;
+				tmp_node = tmp_node->right;
+			}
 		}
-		if( tmp_node->index == index ){
-			char * prev = (char *) tmp_node->left;
-			tmp_node->left = (text_t *) new_line;
-			return prev;
-		} else
-			return NULL;
+		char *prev = strdup(tmp_node->text)
+		tmp_node->text = new_line;
+		return prev;
 	}
 }
 
 void insert_line( text_t *txt, int index, char * new_line) {
-	text_t *tmp_node;
-	if(txt->left == NULL || numLines < index)
+	if(txt == NULL || index > numLines || index < 1)
 		append_line(txt, new_line);
 	else {
-		int i = numLines;
-		char *tmp = set_line(txt, i, new_line);
-		i++;
-		while(i <= numLines){
-			char *tmp = set_line(txt, i, tmp);
+		int i = index;
+		text_t *tmp_node;
+		tmp_node = txt;
+		while(tmp_node->leftChildren + 1 != i){
+			if(i <= tmp_node->leftChildren){
+				tmp_node->leftChildren += 1;
+				tmp_node = tmp_node->left;
+			} else {
+				i = i - tmp_node->leftChildren - 1;
+				tmp_node->rightChildren += 1;
+				tmp_node = tmp_node->right;
+			}
 		}
-		append_line(txt, tmp);
-//		tmp_node = txt;
-//		while( tmp_node->right != NULL ){
-//			if(index < tmp_node->index )
-//				tmp_node = tmp_node->left;
-//			else
-//			   tmp_node = tmp_node->right;
-//		}
-//		if( tmp_node->index == index ){
-//			text_t *old_leaf, *new_leaf;
-//			old_leaf = get_node();
-//			old_leaf->left = tmp_node->left;
-//			old_leaf->index = index + 1;
-//			old_leaf->right = NULL;
-//			old_leaf->length = tmp_node->length;
-//			new_leaf = get_node();
-//			new_leaf->left = (text_t *) new_line;
-//			new_leaf->index = index;
-//			new_leaf->right = NULL;
-//			new_leaf->length = strlen(new_line);
-//
-//			tmp_node->left = new_leaf;
-//			tmp_node->right = old_leaf;
-//			tmp_node->index = index + 1;
-//			tmp_node->length += tmp_node->length + strlen(new_line);
-//		}
+		text_t *new = get_node();
+		new->text = new_line;
+		if(tmp_node->left == NULL){
+			tmp_node->left = new;
+			tmp_node->leftChildren += 1;
+		} else {
+			tmp_node->leftChildren += 1;
+			tmp_node = tmp_node->left;
+			tmp_node->rightChildren += 1;
+			while(tmp_node->right != NULL){
+				tmp_node = tmp_node->right;
+				tmp_node->rightChildren += 1;
+			}
+			tmp_node->right = new;
+		}
 	}
 }
 
@@ -158,18 +170,20 @@ char * delete_line( text_t *txt, int index) {
 		if(txt->index == index) {
 			deleted_line = (char *) txt->left;
 			txt->left = NULL;
+			free(txt);
 			return(deleted_line);
 		}
 		else
 			return( NULL );
 	} else {
+		char *nxt, *c;
 		int i = index;
-		char *c = get_line(txt, i + 1);
-		char *t = set_line(txt, i, c);
+		c = get_line(txt, i + 1);
+		c = set_line(txt, i, c);
 		i++;
 		while(i < numLines){
-			char *nxt = get_line(txt, i + 1);
-			char *tmp = set_line(txt, i);
+			nxt = get_line(txt, i + 1);
+			nxt = set_line(txt, i, nxt);
 			i++;
 		}
 		tmp_node = txt;
@@ -191,8 +205,13 @@ char * delete_line( text_t *txt, int index) {
 		  upper_node->right = other_node->right;
 		  deleted_line = (char *) tmp_node->left;
 		  numLines -= 1;
+		  free(tmp_node);
 		  return(deleted_line);
 	  }
    }
+}
+
+int main() {
+	return 0;
 }
 
