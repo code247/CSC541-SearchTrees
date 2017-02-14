@@ -91,8 +91,11 @@ void append_line( text_t *txt, char * new_line) {
 		txt->text = new_line;
 	} else {
 		tmp_node = txt;
+		text_t * stack[100];
+		int stack_p = 0;
 		while( tmp_node->right != NULL ) {
 			tmp_node->rightChildren += 1;
+			stack[stack_p++] = tmp_node;
 			tmp_node = tmp_node->right;
 		}
 	    text_t *new_leaf;
@@ -133,13 +136,17 @@ void insert_line( text_t *txt, int index, char * new_line) {
 		int i = index;
 		text_t *tmp_node;
 		tmp_node = txt;
+		text_t * stack[100];
+		int stack_p = 0;
 		while(tmp_node->leftChildren + 1 != i){
 			if(i <= tmp_node->leftChildren){
 				tmp_node->leftChildren += 1;
+				stack[stack_p++] = tmp_node;
 				tmp_node = tmp_node->left;
 			} else {
 				i = i - tmp_node->leftChildren - 1;
 				tmp_node->rightChildren += 1;
+				stack[stack_p++] = tmp_node;
 				tmp_node = tmp_node->right;
 			}
 		}
@@ -158,56 +165,193 @@ void insert_line( text_t *txt, int index, char * new_line) {
 			}
 			tmp_node->right = new;
 		}
+		tmp_node->height = 1;
+		int finished = 0;
+		while(stack_p > 0 && !finished){
+			int tmp_height, old_height;
+			tmp_node = stack[--stack_p];
+			old_height= tmp_node->height;
+			if(tmp_node->left->height - tmp_node->right->height == 2 ){
+				if( tmp_node->left->left->height - tmp_node->right->height == 1 ) {
+					right_rotation( tmp_node );
+					tmp_node->right->height = tmp_node->right->left->height + 1;
+					tmp_node->height = tmp_node->right->height + 1;
+				} else {
+					left_rotation(tmp_node->left);
+					right_rotation( tmp_node );
+					tmp_height = tmp_node->left->left->height;
+					tmp_node->left->height  = tmp_height + 1;
+					tmp_node->right->height = tmp_height + 1;
+					tmp_node->height = tmp_height + 2;
+				}
+			}
+			else if (tmp_node->left->height - tmp_node->right->height == -2 ) {
+				if( tmp_node->right->right->height - tmp_node->left->height == 1 ){
+					left_rotation( tmp_node );
+					tmp_node->left->height = tmp_node->left->right->height + 1;
+					tmp_node->height = tmp_node->left->height + 1;
+				} else {
+					right_rotation( tmp_node->right );
+					left_rotation( tmp_node );
+					tmp_height = tmp_node->right->right->height;
+					tmp_node->left->height  = tmp_height + 1;
+					tmp_node->right->height = tmp_height + 1;
+					tmp_node->height = tmp_height + 2;
+				}
+			} else /* update height even if there was no rotation */ {
+				if( tmp_node->left->height > tmp_node->right->height )
+					tmp_node->height = tmp_node->left->height + 1;
+				else
+					tmp_node->height = tmp_node->right->height + 1;
+			}
+			if( tmp_node->height == old_height )
+				finished = 1;
+		}
 	}
 }
 
 char * delete_line( text_t *txt, int index) {
-	text_t *tmp_node, *upper_node, *other_node;
-	char *deleted_line;
-	if(txt->left == NULL)
-		return( NULL );
-	else if(txt->right == NULL) {
-		if(txt->index == index) {
-			deleted_line = (char *) txt->left;
-			txt->left = NULL;
-			free(txt);
-			return(deleted_line);
-		}
-		else
-			return( NULL );
-	} else {
-		char *nxt, *c;
+	char *ret = NULL;
+	if(txt == NULL || index > numLines || index < 1)
+		return NULL;
+	else {
 		int i = index;
-		c = get_line(txt, i + 1);
-		c = set_line(txt, i, c);
-		i++;
-		while(i < numLines){
-			nxt = get_line(txt, i + 1);
-			nxt = set_line(txt, i, nxt);
-			i++;
-		}
+		text_t *tmp_node;
 		tmp_node = txt;
-		while(tmp_node->right != NULL) {
-			upper_node = tmp_node;
-		    if(numLines < tmp_node->index){
-		    	tmp_node   = upper_node->left;
-		    	other_node = upper_node->right;
-		    } else {
-		    	tmp_node   = upper_node->right;
-		    	other_node = upper_node->left;
-		    }
-	  }
-	  if(tmp_node->index != numLines)
-		  return( NULL );
-	  else {
-		  upper_node->index   = other_node->index;
-		  upper_node->left  = other_node->left;
-		  upper_node->right = other_node->right;
-		  deleted_line = (char *) tmp_node->left;
-		  numLines -= 1;
-		  free(tmp_node);
-		  return(deleted_line);
-	  }
+		text_t * stack[100];
+		int stack_p = 0;
+		int flag = 0;
+		while(tmp_node->leftChildren + 1 != i){
+			if(i <= tmp_node->leftChildren){
+				tmp_node->leftChildren -= 1;
+				stack[stack_p++] = tmp_node;
+				tmp_node = tmp_node->left;
+				flag = 0;
+			} else {
+				i = i - tmp_node->leftChildren - 1;
+				tmp_node->rightChildren -= 1;
+				stack[stack_p++] = tmp_node;
+				tmp_node = tmp_node->right;
+				flag = 1;
+			}
+		}
+		if(stack_p == 0){
+			if(txt->left == NULL && txt->right == NULL){
+				ret = strdup(txt->text);
+				free(txt);
+				return ret;
+			} else if (txt->right == NULL){
+				text_t *tmp = txt;
+				ret = strdup(txt->text);
+				txt = txt->left;
+				tmp->left = NULL;
+				free(tmp);
+				return ret;
+			} else if (txt->left == NULL){
+				text_t *tmp = txt;
+				ret = strdup(txt->text);
+				txt = txt->right;
+				tmp->right = NULL;
+				free(tmp);
+				return ret;
+			} else {
+				text_t *upper_node = tmp_node;
+				tmp_node->rightChildren -= 1;
+				tmp_node = tmp_node->right;
+				while(tmp_node->left != NULL){
+					upper_node = tmp_node;
+					tmp_node->leftChildren -= 1;
+					tmp_node = tmp_node->left;
+				}
+				ret = strdup(txt->text);
+				txt->text = strdup(tmp_node->text);
+				upper_node->left = tmp_node->right;
+				tmp_node->right = NULL;
+				free(tmp_node);
+				return ret;
+			}
+		} else {
+			if(tmp_node->left == NULL && tmp_node->right == NULL){
+				ret = strdup(tmp_node->text);
+				if (flag == 0) stack[stack_p - 1]->left = NULL;
+				else stack[stack_p - 1]->right = NULL;
+				free(tmp_node);
+				return ret;
+			} else if (tmp_node->right == NULL){
+				ret = strdup(tmp_node->text);
+				if (flag == 0) stack[stack_p - 1]->left = tmp_node->left;
+				else stack[stack_p - 1]->right = tmp_node->left;
+				tmp_node->left = NULL;
+				free(tmp_node);
+				return ret;
+			} else if (tmp_node->left == NULL){
+				ret = strdup(tmp_node->text);
+				if (flag == 0) stack[stack_p - 1]->left = tmp_node->right;
+				else stack[stack_p - 1]->right = tmp_node->right;
+				tmp_node->right = NULL;
+				free(tmp_node);
+				return ret;
+			} else {
+				text_t *tmp = tmp_node;
+				text_t *upper_node = tmp_node;
+				tmp_node->rightChildren -= 1;
+				tmp_node = tmp_node->right;
+				while(tmp_node->left != NULL){
+					upper_node = tmp_node;
+					tmp_node->leftChildren -= 1;
+					tmp_node = tmp_node->left;
+				}
+				ret = strdup(tmp->text);
+				if (flag == 0) stack[stack_p - 1]->left = tmp_node;
+				else stack[stack_p - 1]->right = tmp_node->right;
+				upper_node->left = tmp_node->right;
+				tmp_node->right = NULL;
+				free(tmp_node);
+				return ret;
+			}
+		}
+		int finished = 0;
+		while(stack_p > 0 && !finished){
+			int tmp_height, old_height;
+			tmp_node = stack[--stack_p];
+			old_height= tmp_node->height;
+			if(tmp_node->left->height - tmp_node->right->height == 2 ){
+				if( tmp_node->left->left->height - tmp_node->right->height == 1 ) {
+					right_rotation( tmp_node );
+					tmp_node->right->height = tmp_node->right->left->height + 1;
+					tmp_node->height = tmp_node->right->height + 1;
+				} else {
+					left_rotation(tmp_node->left);
+					right_rotation( tmp_node );
+					tmp_height = tmp_node->left->left->height;
+					tmp_node->left->height  = tmp_height + 1;
+					tmp_node->right->height = tmp_height + 1;
+					tmp_node->height = tmp_height + 2;
+				}
+			}
+			else if (tmp_node->left->height - tmp_node->right->height == -2 ) {
+				if( tmp_node->right->right->height - tmp_node->left->height == 1 ){
+					left_rotation( tmp_node );
+					tmp_node->left->height = tmp_node->left->right->height + 1;
+					tmp_node->height = tmp_node->left->height + 1;
+				} else {
+					right_rotation( tmp_node->right );
+					left_rotation( tmp_node );
+					tmp_height = tmp_node->right->right->height;
+					tmp_node->left->height  = tmp_height + 1;
+					tmp_node->right->height = tmp_height + 1;
+					tmp_node->height = tmp_height + 2;
+				}
+			} else /* update height even if there was no rotation */ {
+				if( tmp_node->left->height > tmp_node->right->height )
+					tmp_node->height = tmp_node->left->height + 1;
+				else
+					tmp_node->height = tmp_node->right->height + 1;
+			}
+			if( tmp_node->height == old_height )
+				finished = 1;
+		}
+		return ret;
    }
 }
 
